@@ -1,23 +1,42 @@
 package com.brzn.mtgboard.user;
 
 import com.brzn.mtgboard.exceptionHandler.SQLRecordNotUniqueException;
+import com.brzn.mtgboard.security.Role;
+import com.brzn.mtgboard.security.RoleRepo;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
+import java.util.Arrays;
+import java.util.HashSet;
 
 @Service
 @Transactional
 class UserService {
 
     private UserRepo userRepo;
-//    private PasswordEncoder passwordEncoder;
+    private RoleRepo roleRepo;
+    private BCryptPasswordEncoder passwordEncoder;
 
     @Autowired
-    public UserService(UserRepo userRepo) {
+    public UserService(UserRepo userRepo, RoleRepo roleRepo, BCryptPasswordEncoder passwordEncoder) {
         this.userRepo = userRepo;
+        this.roleRepo = roleRepo;
+        this.passwordEncoder = passwordEncoder;
     }
 
+    public User findByUserName(String username) {
+        return userRepo.findByUsername(username);
+    }
+
+    public void save(User user) {
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        user.setEnabled(1);
+        Role userRole = roleRepo.findByName("ROLE_USER");
+        user.setRoles(new HashSet<>(Arrays.asList(userRole))); //todo to jest chyba bezsensu
+        userRepo.save(user);
+    }
 
     public void saveUser(User user) throws SQLRecordNotUniqueException {
         if (isUsernameUnique(user.getUsername())) {
@@ -28,6 +47,7 @@ class UserService {
 
         userRepo.save(user);
     }
+//    private PasswordEncoder passwordEncoder;
 
 
 //    private User getUserWithHashedPassword(User user) {
@@ -37,16 +57,10 @@ class UserService {
 //    }
 
     private boolean isUsernameUnique(String username) {
-        if (userRepo.findByUsername(username) == null) {
-            return false;
-        }
-        return true;
+        return userRepo.findByUsername(username) != null;
     }
 
     private boolean isUserEmailUnique(String email) {
-        if (userRepo.findByEmail(email) == null) {
-            return false;
-        }
-        return true;
+        return userRepo.findByEmail(email) != null;
     }
 }
